@@ -13,6 +13,82 @@ import (
 	"hillmord/game"
 )
 
+// lineReader handles line-buffered input with echo for SSH PTY sessions.
+// It reads raw bytes from the SSH channel one at a time, handles backspace
+// (without allowing deletion past the prompt), echoes characters, and only
+// delivers complete lines (terminated by \n) to the caller.
+type lineReader struct {
+	raw    io.Reader
+	writer io.Writer
+	buf    []byte // current line being edited
+	ready  []byte // completed line waiting to be consumed by Read
+}
+
+func (lr *lineReader) Read(p []byte) (int, error) {
+	// If we have a completed line ready, deliver it
+	if len(lr.ready) > 0 {
+		n := copy(p, lr.ready)
+		lr.ready = lr.ready[n:]
+		return n, nil
+	}
+
+	// Read raw input byte-by-byte until we get a full line
+	one := make([]byte, 1)
+	for {
+		_, err := lr.raw.Read(one)
+		if err != nil {
+			return 0, err
+		}
+		switch one[0] {
+		case '\r', '\n':
+			// Enter: echo CR+LF, deliver the line
+			lr.writer.Write([]byte("\r\n"))
+			line := append(lr.buf, '\n')
+			lr.buf = nil
+			n := copy(p, line)
+			if n < len(line) {
+				lr.ready = line[n:]
+			}
+			return n, nil
+		case 127, '\b':
+			// Backspace: only delete if there are typed characters
+			if len(lr.buf) > 0 {
+				lr.buf = lr.buf[:len(lr.buf)-1]
+				lr.writer.Write([]byte("\b \b"))
+			}
+		case 3:
+			// Ctrl+C
+			return 0, io.EOF
+		default:
+			// Normal character: echo and buffer
+			lr.buf = append(lr.buf, one[0])
+			lr.writer.Write(one)
+		}
+	}
+}
+
+// crlfWriter converts \n to \r\n in output, needed for SSH PTY sessions
+type crlfWriter struct {
+	writer io.Writer
+}
+
+func (w *crlfWriter) Write(p []byte) (int, error) {
+	// Replace bare \n with \r\n for proper terminal rendering
+	var out []byte
+	for i := 0; i < len(p); i++ {
+		if p[i] == '\n' && (i == 0 || p[i-1] != '\r') {
+			out = append(out, '\r', '\n')
+		} else {
+			out = append(out, p[i])
+		}
+	}
+	_, err := w.writer.Write(out)
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil // return original length so callers aren't confused
+}
+
 func main() {
 	sshMode := flag.Bool("ssh", false, "Run as SSH server instead of interactive game")
 	sshAddr := flag.String("addr", "0.0.0.0:2222", "SSH server address (host:port)")
@@ -73,15 +149,20 @@ func handleGameSession(session ssh.Session) {
 		playerName = "Mudrick the Uncertain"
 	}
 
-	// Show title screen - use io.WriteString which flushes properly
-	io.WriteString(session, game.TitleScreen())
+	// Wrap output with CR+LF conversion for proper terminal rendering
+	out := &crlfWriter{writer: session}
+
+	// Wrap the session with a line reader that handles echo and backspace
+	lr := &lineReader{raw: session, writer: session}
+
+	// Show title screen
+	io.WriteString(out, game.TitleScreen())
 
 	// Ask for name
-	io.WriteString(session, "What shall we call you, brave fool? > ")
+	io.WriteString(out, "What shall we call you, brave fool? > ")
 
-	// Create a reader from the session
-	// The session implements io.Reader/io.Writer from the Channel interface
-	reader := bufio.NewReader(session)
+	// Create a reader from the line-editing reader
+	reader := bufio.NewReader(lr)
 	name, err := reader.ReadString('\n')
 	if err != nil {
 		if err != io.EOF {
@@ -98,7 +179,7 @@ func handleGameSession(session ssh.Session) {
 		}
 	}
 
-	// Create and run the game
+	// Create and run the game with CR+LF output
 	g := game.New(name)
-	g.RunWithWriter(reader, session)
+	g.RunWithWriter(reader, out)
 }
