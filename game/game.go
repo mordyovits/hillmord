@@ -3,7 +3,9 @@ package game
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"math/rand"
+	"os"
 	"strings"
 )
 
@@ -11,6 +13,7 @@ type Game struct {
 	Player  *Player
 	World   map[string]*Location
 	inputFn func() string
+	output  io.Writer
 }
 
 func New(playerName string) *Game {
@@ -37,7 +40,27 @@ func New(playerName string) *Game {
 	return &Game{
 		Player: p,
 		World:  BuildWorld(),
+		output: os.Stdout,
 	}
+}
+
+// RunWithWriter runs the game with a custom output writer (e.g., for SSH sessions)
+func (g *Game) RunWithWriter(reader *bufio.Reader, writer io.Writer) {
+	g.output = writer
+	g.Run(reader)
+}
+
+// Helper methods for printing to the game's output writer
+func (g *Game) printf(format string, a ...interface{}) {
+	fmt.Fprintf(g.output, format, a...)
+}
+
+func (g *Game) println(a ...interface{}) {
+	fmt.Fprintln(g.output, a...)
+}
+
+func (g *Game) print(a ...interface{}) {
+	fmt.Fprint(g.output, a...)
 }
 
 func (g *Game) Run(reader *bufio.Reader) {
@@ -47,17 +70,17 @@ func (g *Game) Run(reader *bufio.Reader) {
 	}
 	g.inputFn = inputFn
 
-	fmt.Printf("\n🌅 Welcome, %s! You awaken in Bumbleford with a headache,\n", g.Player.Name)
-	fmt.Println("   a soggy twig, and absolutely no idea how you got here.")
-	fmt.Println("   Legend says Lord Hillmord sits on the Throne of Mild Inconvenience")
-	fmt.Println("   deep beneath Skull Plateau. Someone should probably do something about that.")
-	fmt.Println("   That someone, unfortunately, is you.")
-	fmt.Println()
+	g.printf( "\n🌅 Welcome, %s! You awaken in Bumbleford with a headache,\n", g.Player.Name)
+	g.println( "   a soggy twig, and absolutely no idea how you got here.")
+	g.println( "   Legend says Lord Hillmord sits on the Throne of Mild Inconvenience")
+	g.println( "   deep beneath Skull Plateau. Someone should probably do something about that.")
+	g.println( "   That someone, unfortunately, is you.")
+	g.println()
 
 	g.describeLocation()
 
 	for {
-		fmt.Print("\n🎮 > ")
+		g.print("\n🎮 > ")
 		cmd := strings.ToLower(strings.TrimSpace(inputFn()))
 
 		switch {
@@ -90,26 +113,26 @@ func (g *Game) Run(reader *bufio.Reader) {
 		case cmd == "map":
 			g.showMap()
 		case cmd == "quit" || cmd == "q":
-			fmt.Println("\n👋 You wander off into the sunset, never to be seen again.")
-			fmt.Println("   Thanks for playing HILLMORD! 🏔️⚔️")
+			g.println("\n👋 You wander off into the sunset, never to be seen again.")
+			g.println("   Thanks for playing HILLMORD! 🏔️⚔️")
 			return
 		default:
-			fmt.Println("🤷 Unknown command. Type 'help' for a list of actions.")
+			g.println("🤷 Unknown command. Type 'help' for a list of actions.")
 		}
 
 		if g.Player.Stats.HP <= 0 {
-			fmt.Println("\n💀 ═══════════════════════════════════════")
-			fmt.Println("   G A M E   O V E R")
-			fmt.Printf("   %s reached Level %d with %d 🪙\n", g.Player.Name, g.Player.Level, g.Player.Gold)
-			fmt.Println("   Better luck next reincarnation! 👻")
-			fmt.Println("💀 ═══════════════════════════════════════")
+			g.println("\n💀 ═══════════════════════════════════════")
+			g.println("   G A M E   O V E R")
+			g.printf("   %s reached Level %d with %d 🪙\n", g.Player.Name, g.Player.Level, g.Player.Gold)
+			g.println("   Better luck next reincarnation! 👻")
+			g.println("💀 ═══════════════════════════════════════")
 			return
 		}
 	}
 }
 
 func (g *Game) showHelp() {
-	fmt.Println(`
+	g.println(`
 📖 ═══ COMMANDS ═══ 📖
   Movement:     [N]orth  [S]outh  [E]ast  [W]est
   Explore:      [L]ook  [T]alk  [F]ight  [M]arket  [Map]
@@ -120,21 +143,21 @@ func (g *Game) showHelp() {
 
 func (g *Game) describeLocation() {
 	loc := g.World[g.Player.Location]
-	fmt.Printf("\n%s ═══ %s ═══ %s\n", loc.Emoji, loc.Name, loc.Emoji)
-	fmt.Printf("  %s\n", loc.Description)
+	g.printf("\n%s ═══ %s ═══ %s\n", loc.Emoji, loc.Name, loc.Emoji)
+	g.printf("  %s\n", loc.Description)
 
-	fmt.Print("  Exits: ")
+	g.print("  Exits: ")
 	exits := []string{}
 	for dir, dest := range loc.Connections {
 		exits = append(exits, fmt.Sprintf("%s → %s", dir, dest))
 	}
-	fmt.Println(strings.Join(exits, "  |  "))
+	g.println(strings.Join(exits, "  |  "))
 
 	if loc.HasMarket {
-		fmt.Println("  💰 There is a MARKET here.")
+		g.println("  💰 There is a MARKET here.")
 	}
 	if len(loc.Enemies) > 0 {
-		fmt.Println("  ⚠️  Dangerous creatures lurk nearby...")
+		g.println("  ⚠️  Dangerous creatures lurk nearby...")
 	}
 }
 
@@ -148,17 +171,17 @@ func (g *Game) move(dir Direction) {
 			"A sign says: 'NOPE'. You respect the sign.",
 			"You try, but your legs refuse. Smart legs.",
 		}
-		fmt.Printf("🚫 %s\n", quips[rand.Intn(len(quips))])
+		g.printf("🚫 %s\n", quips[rand.Intn(len(quips))])
 		return
 	}
 	g.Player.Location = dest
-	fmt.Printf("🚶 You travel %s to %s...\n", dir, dest)
+	g.printf("🚶 You travel %s to %s...\n", dir, dest)
 	g.describeLocation()
 
 	// Random encounter chance (30%)
 	newLoc := g.World[dest]
 	if len(newLoc.Enemies) > 0 && rand.Intn(100) < 30 {
-		fmt.Println("\n⚠️  Something stirs in the shadows!")
+		g.println("\n⚠️  Something stirs in the shadows!")
 		enemy := newLoc.Enemies[rand.Intn(len(newLoc.Enemies))]
 		// Reset enemy HP
 		enemy.Stats.HP = enemy.Stats.MaxHP
@@ -169,7 +192,7 @@ func (g *Game) move(dir Direction) {
 func (g *Game) seekFight(input func() string) {
 	loc := g.World[g.Player.Location]
 	if len(loc.Enemies) == 0 {
-		fmt.Println("😌 This place is peaceful. No one to fight. How boring.")
+		g.println("😌 This place is peaceful. No one to fight. How boring.")
 		return
 	}
 	enemy := loc.Enemies[rand.Intn(len(loc.Enemies))]
@@ -180,7 +203,7 @@ func (g *Game) seekFight(input func() string) {
 func (g *Game) enterMarket(input func() string) {
 	loc := g.World[g.Player.Location]
 	if !loc.HasMarket {
-		fmt.Println("🏪 There's no market here. Just dirt and disappointment.")
+		g.println("🏪 There's no market here. Just dirt and disappointment.")
 		return
 	}
 	g.RunMarket(input)
@@ -189,41 +212,41 @@ func (g *Game) enterMarket(input func() string) {
 func (g *Game) talkToNPC() {
 	loc := g.World[g.Player.Location]
 	if len(loc.NPCLines) == 0 {
-		fmt.Println("🤐 There's no one here to talk to. You talk to yourself. It's fine. It's normal.")
+		g.println("🤐 There's no one here to talk to. You talk to yourself. It's fine. It's normal.")
 		return
 	}
 	line := loc.NPCLines[rand.Intn(len(loc.NPCLines))]
-	fmt.Printf("\n  %s\n", line)
+	g.printf("\n  %s\n", line)
 }
 
 func (g *Game) showInventory() {
-	fmt.Println("\n🎒 ═══ INVENTORY ═══ 🎒")
-	fmt.Printf("  ⚔️  Weapon: %s (%s, %d-%d dmg)\n",
+	g.println("\n🎒 ═══ INVENTORY ═══ 🎒")
+	g.printf("  ⚔️  Weapon: %s (%s, %d-%d dmg)\n",
 		g.Player.Weapon.Name, g.Player.Weapon.Class, g.Player.Weapon.MinDmg, g.Player.Weapon.MaxDmg)
-	fmt.Printf("  💰 Gold: %d 🪙\n", g.Player.Gold)
+	g.printf("  💰 Gold: %d 🪙\n", g.Player.Gold)
 	if len(g.Player.Inventory) == 0 {
-		fmt.Println("  🎒 Bag: Empty. Like your future.")
+		g.println("  🎒 Bag: Empty. Like your future.")
 	} else {
-		fmt.Println("  🎒 Bag:")
+		g.println("  🎒 Bag:")
 		for i, item := range g.Player.Inventory {
 			healStr := ""
 			if item.Heal > 0 {
 				healStr = fmt.Sprintf(" (heals %d HP)", item.Heal)
 			}
-			fmt.Printf("    %d. %s [%s]%s\n", i+1, item.Name, item.Kind, healStr)
+			g.printf("    %d. %s [%s]%s\n", i+1, item.Name, item.Kind, healStr)
 		}
 	}
 }
 
 func (g *Game) showStats() {
-	fmt.Println("\n📊 ═══ CHARACTER STATS ═══ 📊")
-	fmt.Printf("  🧍 %s  |  Level %d\n", g.Player.Name, g.Player.Level)
-	fmt.Printf("  ❤️  HP: %d/%d\n", g.Player.Stats.HP, g.Player.Stats.MaxHP)
-	fmt.Printf("  ⚔️  Attack: %d  |  🛡️  Defense: %d  |  💨 Speed: %d\n",
+	g.println("\n📊 ═══ CHARACTER STATS ═══ 📊")
+	g.printf("  🧍 %s  |  Level %d\n", g.Player.Name, g.Player.Level)
+	g.printf("  ❤️  HP: %d/%d\n", g.Player.Stats.HP, g.Player.Stats.MaxHP)
+	g.printf("  ⚔️  Attack: %d  |  🛡️  Defense: %d  |  💨 Speed: %d\n",
 		g.Player.Stats.Attack, g.Player.Stats.Defense, g.Player.Stats.Speed)
-	fmt.Printf("  ✨ XP: %d / %d (to next level)\n", g.Player.XP, g.Player.Level*50)
-	fmt.Printf("  💰 Gold: %d 🪙\n", g.Player.Gold)
-	fmt.Printf("  🗡️  Weapon: %s (%d-%d dmg)\n", g.Player.Weapon.Name, g.Player.Weapon.MinDmg, g.Player.Weapon.MaxDmg)
+	g.printf("  ✨ XP: %d / %d (to next level)\n", g.Player.XP, g.Player.Level*50)
+	g.printf("  💰 Gold: %d 🪙\n", g.Player.Gold)
+	g.printf("  🗡️  Weapon: %s (%d-%d dmg)\n", g.Player.Weapon.Name, g.Player.Weapon.MinDmg, g.Player.Weapon.MaxDmg)
 }
 
 func (g *Game) useItemOutOfCombat(input func() string) {
@@ -234,19 +257,19 @@ func (g *Game) useItemOutOfCombat(input func() string) {
 		}
 	}
 	if len(healItems) == 0 {
-		fmt.Println("🎒 Nothing usable. Try buying potions or food at a market.")
+		g.println("🎒 Nothing usable. Try buying potions or food at a market.")
 		return
 	}
 	if g.Player.Stats.HP >= g.Player.Stats.MaxHP {
-		fmt.Println("❤️  You're already at full health! No need to waste supplies.")
+		g.println("❤️  You're already at full health! No need to waste supplies.")
 		return
 	}
-	fmt.Println("\n🎒 Usable items:")
+	g.println("\n🎒 Usable items:")
 	for j, idx := range healItems {
 		item := g.Player.Inventory[idx]
-		fmt.Printf("  %d. %s (heals %d HP)\n", j+1, item.Name, item.Heal)
+		g.printf("  %d. %s (heals %d HP)\n", j+1, item.Name, item.Heal)
 	}
-	fmt.Print("Choose (or 0 to cancel): > ")
+	g.print("Choose (or 0 to cancel): > ")
 	choice := 0
 	fmt.Sscanf(strings.TrimSpace(input()), "%d", &choice)
 	if choice < 1 || choice > len(healItems) {
@@ -258,7 +281,7 @@ func (g *Game) useItemOutOfCombat(input func() string) {
 	if g.Player.Stats.HP > g.Player.Stats.MaxHP {
 		g.Player.Stats.HP = g.Player.Stats.MaxHP
 	}
-	fmt.Printf("✨ You use %s and feel %d HP better! (%d/%d)\n",
+	g.printf("✨ You use %s and feel %d HP better! (%d/%d)\n",
 		item.Name, item.Heal, g.Player.Stats.HP, g.Player.Stats.MaxHP)
 	g.Player.Inventory = append(g.Player.Inventory[:idx], g.Player.Inventory[idx+1:]...)
 }
@@ -266,7 +289,7 @@ func (g *Game) useItemOutOfCombat(input func() string) {
 func (g *Game) rest() {
 	loc := g.World[g.Player.Location]
 	if len(loc.Enemies) > 0 && rand.Intn(100) < 25 {
-		fmt.Println("😴 You try to rest but something interrupts your nap!")
+		g.println("😴 You try to rest but something interrupts your nap!")
 		enemy := loc.Enemies[rand.Intn(len(loc.Enemies))]
 		enemy.Stats.HP = enemy.Stats.MaxHP
 		g.RunCombat(enemy, g.inputFn)
@@ -283,12 +306,12 @@ func (g *Game) rest() {
 		"A passing bird poops on you. But hey, you feel rested!",
 		"You lean against a tree and immediately fall asleep. Nobody robs you, amazingly.",
 	}
-	fmt.Printf("😴 %s Recovered %d HP. (%d/%d)\n",
+	g.printf("😴 %s Recovered %d HP. (%d/%d)\n",
 		quips[rand.Intn(len(quips))], heal, g.Player.Stats.HP, g.Player.Stats.MaxHP)
 }
 
 func (g *Game) showMap() {
-	fmt.Println(`
+	g.println(`
 🗺️ ═══ MAP OF HILLMORD ═══ 🗺️
 
                     🐲 Dragon's Pantry
@@ -308,5 +331,5 @@ func (g *Game) showMap() {
                                |
                      👑 Throne of Mild Inconvenience`)
 
-	fmt.Printf("\n  📍 You are at: %s\n", g.Player.Location)
+	g.printf("\n  📍 You are at: %s\n", g.Player.Location)
 }

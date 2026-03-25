@@ -8,21 +8,21 @@ import (
 
 func (g *Game) RunCombat(enemy Enemy, input func() string) bool {
 	e := enemy // copy so we don't mutate the template
-	fmt.Printf("\n⚔️ ═══════════════════════════════════════════════ ⚔️\n")
-	fmt.Printf("   %s  %s appears!\n", e.Emoji, e.Name)
-	fmt.Printf("   💬 %s\n", e.Quip)
-	fmt.Printf("   ❤️  HP: %d  |  ⚔️  ATK: %d  |  🛡️  DEF: %d\n", e.Stats.HP, e.Stats.Attack, e.Stats.Defense)
-	fmt.Printf("⚔️ ═══════════════════════════════════════════════ ⚔️\n")
+	g.printf("\n⚔️ ═══════════════════════════════════════════════ ⚔️\n")
+	g.printf("   %s  %s appears!\n", e.Emoji, e.Name)
+	g.printf("   💬 %s\n", e.Quip)
+	g.printf("   ❤️  HP: %d  |  ⚔️  ATK: %d  |  🛡️  DEF: %d\n", e.Stats.HP, e.Stats.Attack, e.Stats.Defense)
+	g.printf("⚔️ ═══════════════════════════════════════════════ ⚔️\n")
 
 	round := 1
 	for e.Stats.HP > 0 && g.Player.Stats.HP > 0 {
-		fmt.Printf("\n── Round %d ──\n", round)
-		fmt.Printf("  🧍 %s: ❤️  %d/%d  |  %s %s equipped\n",
+		g.printf("\n── Round %d ──\n", round)
+		g.printf("  🧍 %s: ❤️  %d/%d  |  %s %s equipped\n",
 			g.Player.Name, g.Player.Stats.HP, g.Player.Stats.MaxHP,
 			g.Player.Weapon.Class, g.Player.Weapon.Name)
-		fmt.Printf("  %s %s: ❤️  %d/%d\n", e.Emoji, e.Name, e.Stats.HP, e.Stats.MaxHP)
-		fmt.Println("\n  [A] Attack  [U] Use item  [F] Flee")
-		fmt.Print("  > ")
+		g.printf("  %s %s: ❤️  %d/%d\n", e.Emoji, e.Name, e.Stats.HP, e.Stats.MaxHP)
+		g.println("\n  [A] Attack  [U] Use item  [F] Flee")
+		g.print("  > ")
 
 		cmd := strings.ToLower(strings.TrimSpace(input()))
 		switch cmd {
@@ -41,27 +41,27 @@ func (g *Game) RunCombat(enemy Enemy, input func() string) bool {
 			}
 		case "f":
 			if rand.Intn(100) < 40+g.Player.Stats.Speed*3 {
-				fmt.Println("  🏃 You flee like the wind! A cowardly, sensible wind.")
+				g.println("  🏃 You flee like the wind! A cowardly, sensible wind.")
 				return true // alive
 			}
-			fmt.Println("  🏃 You try to flee but trip over your own ego!")
+			g.println("  🏃 You try to flee but trip over your own ego!")
 			g.enemyAttack(&e)
 		default:
-			fmt.Println("  🤷 Confusion isn't a combat move! (Try A, U, or F)")
+			g.println("  🤷 Confusion isn't a combat move! (Try A, U, or F)")
 			continue
 		}
 
 		if g.Player.Stats.HP <= 0 {
-			fmt.Println("\n  💀 You have been slain! Your adventure ends here.")
-			fmt.Printf("  💀 %s laughs over your crumpled form.\n", e.Name)
+			g.println("\n  💀 You have been slain! Your adventure ends here.")
+			g.printf("  💀 %s laughs over your crumpled form.\n", e.Name)
 			return false
 		}
 		round++
 	}
 
 	// Victory!
-	fmt.Printf("\n  🎉🎉🎉 VICTORY! You defeated %s %s! 🎉🎉🎉\n", e.Emoji, e.Name)
-	fmt.Printf("  💰 Loot: %d 🪙  |  ✨ XP: %d\n", e.Gold, e.XP)
+	g.printf("\n  🎉🎉🎉 VICTORY! You defeated %s %s! 🎉🎉🎉\n", e.Emoji, e.Name)
+	g.printf("  💰 Loot: %d 🪙  |  ✨ XP: %d\n", e.Gold, e.XP)
 	g.Player.Gold += e.Gold
 	g.Player.XP += e.XP
 	g.checkLevelUp()
@@ -87,10 +87,10 @@ func (g *Game) playerAttack(e *Enemy) {
 	}
 
 	if crit {
-		fmt.Printf("  💥 CRITICAL HIT! You smash %s for %d damage!\n", e.Name, dmg)
-		fmt.Println("     " + critQuip())
+		g.printf("  💥 CRITICAL HIT! You smash %s for %d damage!\n", e.Name, dmg)
+		g.println("     " + critQuip())
 	} else {
-		fmt.Printf("  🗡️  You hit %s for %d damage with your %s!\n", e.Name, dmg, g.Player.Weapon.Name)
+		g.printf("  🗡️  You hit %s for %d damage with your %s!\n", e.Name, dmg, g.Player.Weapon.Name)
 	}
 }
 
@@ -114,9 +114,9 @@ func (g *Game) enemyAttack(e *Enemy) {
 	}
 
 	if crit {
-		fmt.Printf("  💥 %s lands a CRITICAL HIT on you for %d damage! Ouch!\n", e.Name, dmg)
+		g.printf("  💥 %s lands a CRITICAL HIT on you for %d damage! Ouch!\n", e.Name, dmg)
 	} else {
-		fmt.Printf("  🩸 %s hits you for %d damage with %s!\n", e.Name, dmg, e.Weapon.Name)
+		g.printf("  🩸 %s hits you for %d damage with %s!\n", e.Name, dmg, e.Weapon.Name)
 	}
 }
 
@@ -128,15 +128,15 @@ func (g *Game) useItemInCombat(input func() string) bool {
 		}
 	}
 	if len(healItems) == 0 {
-		fmt.Println("  🎒 No usable items! Maybe buy some potions next time, genius.")
+		g.println("  🎒 No usable items! Maybe buy some potions next time, genius.")
 		return false
 	}
-	fmt.Println("  🎒 Usable items:")
+	g.println("  🎒 Usable items:")
 	for j, idx := range healItems {
 		item := g.Player.Inventory[idx]
-		fmt.Printf("    %d. %s (heals %d HP)\n", j+1, item.Name, item.Heal)
+		g.printf("    %d. %s (heals %d HP)\n", j+1, item.Name, item.Heal)
 	}
-	fmt.Print("  Choose (or 0 to cancel): > ")
+	g.print("  Choose (or 0 to cancel): > ")
 
 	choice := 0
 	fmt.Sscanf(strings.TrimSpace(input()), "%d", &choice)
@@ -149,7 +149,7 @@ func (g *Game) useItemInCombat(input func() string) bool {
 	if g.Player.Stats.HP > g.Player.Stats.MaxHP {
 		g.Player.Stats.HP = g.Player.Stats.MaxHP
 	}
-	fmt.Printf("  ✨ You use %s and recover %d HP! (now %d/%d)\n",
+	g.printf("  ✨ You use %s and recover %d HP! (now %d/%d)\n",
 		item.Name, item.Heal, g.Player.Stats.HP, g.Player.Stats.MaxHP)
 	// Remove item
 	g.Player.Inventory = append(g.Player.Inventory[:idx], g.Player.Inventory[idx+1:]...)
@@ -169,8 +169,8 @@ func (g *Game) checkLevelUp() {
 		g.Player.Stats.Attack += 2
 		g.Player.Stats.Defense += 1
 		g.Player.Stats.Speed += 1
-		fmt.Printf("\n  🌟 LEVEL UP! You are now level %d! 🌟\n", g.Player.Level)
-		fmt.Printf("  ❤️  MaxHP +10  |  ⚔️  ATK +2  |  🛡️  DEF +1  |  💨 SPD +1\n")
+		g.printf("\n  🌟 LEVEL UP! You are now level %d! 🌟\n", g.Player.Level)
+		g.printf("  ❤️  MaxHP +10  |  ⚔️  ATK +2  |  🛡️  DEF +1  |  💨 SPD +1\n")
 		needed = g.Player.Level * 50
 	}
 }

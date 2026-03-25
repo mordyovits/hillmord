@@ -33,10 +33,10 @@ var ItemsForSale = []Item{
 
 func (g *Game) RunMarket(input func() string) {
 	for {
-		fmt.Println("\n💰 ═══ MARKET ═══ 💰")
-		fmt.Printf("Your gold: %d 🪙\n\n", g.Player.Gold)
-		fmt.Println("[W] Browse weapons  [I] Browse items  [S] Sell items  [L] Leave market")
-		fmt.Print("> ")
+		g.println("\n💰 ═══ MARKET ═══ 💰")
+		g.printf("Your gold: %d 🪙\n\n", g.Player.Gold)
+		g.println("[W] Browse weapons  [I] Browse items  [S] Sell items  [L] Leave market")
+		g.print("> ")
 
 		cmd := strings.ToLower(strings.TrimSpace(input()))
 		switch cmd {
@@ -47,24 +47,24 @@ func (g *Game) RunMarket(input func() string) {
 		case "s":
 			g.sellItems(input)
 		case "l":
-			fmt.Println("🚶 You leave the market, wallet slightly lighter.")
+			g.println("🚶 You leave the market, wallet slightly lighter.")
 			return
 		default:
-			fmt.Println("🤷 The merchant stares blankly.")
+			g.println("🤷 The merchant stares blankly.")
 		}
 	}
 }
 
 func (g *Game) browseWeapons(input func() string) {
-	fmt.Println("\n⚔️  ─── WEAPONS FOR SALE ─── ⚔️")
-	fmt.Printf("  %-4s %-35s %-14s %-10s %s\n", "#", "Name", "Class", "Damage", "Price")
-	fmt.Println("  " + strings.Repeat("─", 80))
+	g.println("\n⚔️  ─── WEAPONS FOR SALE ─── ⚔️")
+	g.printf("  %-4s %-35s %-14s %-10s %s\n", "#", "Name", "Class", "Damage", "Price")
+	g.println("  " + strings.Repeat("─", 80))
 	for i, w := range WeaponsForSale {
-		fmt.Printf("  %-4d %-35s %-14s %2d-%-7d %d 🪙\n", i+1, w.Name, w.Class, w.MinDmg, w.MaxDmg, w.Price)
-		fmt.Printf("       💬 %s\n", w.Quip)
+		g.printf("  %-4d %-35s %-14s %2d-%-7d %d 🪙\n", i+1, w.Name, w.Class, w.MinDmg, w.MaxDmg, w.Price)
+		g.printf("       💬 %s\n", w.Quip)
 	}
-	fmt.Printf("\n  Current weapon: %s (%s, %d-%d dmg)\n", g.Player.Weapon.Name, g.Player.Weapon.Class, g.Player.Weapon.MinDmg, g.Player.Weapon.MaxDmg)
-	fmt.Print("\nEnter number to buy (or 0 to go back): > ")
+	g.printf("\n  Current weapon: %s (%s, %d-%d dmg)\n", g.Player.Weapon.Name, g.Player.Weapon.Class, g.Player.Weapon.MinDmg, g.Player.Weapon.MaxDmg)
+	g.print("\nEnter number to buy (or 0 to go back): > ")
 
 	choice, err := strconv.Atoi(strings.TrimSpace(input()))
 	if err != nil || choice < 1 || choice > len(WeaponsForSale) {
@@ -72,27 +72,27 @@ func (g *Game) browseWeapons(input func() string) {
 	}
 	w := WeaponsForSale[choice-1]
 	if g.Player.Gold < w.Price {
-		fmt.Printf("😢 You need %d 🪙 but only have %d. Embarrassing.\n", w.Price, g.Player.Gold)
+		g.printf("😢 You need %d 🪙 but only have %d. Embarrassing.\n", w.Price, g.Player.Gold)
 		return
 	}
 	g.Player.Gold -= w.Price
 	old := g.Player.Weapon
 	g.Player.Weapon = w
-	fmt.Printf("🎉 You bought %s! Equipped immediately.\n", w.Name)
-	fmt.Printf("   (Your old %s clatters to the ground. No refunds.)\n", old.Name)
+	g.printf("🎉 You bought %s! Equipped immediately.\n", w.Name)
+	g.printf("   (Your old %s clatters to the ground. No refunds.)\n", old.Name)
 }
 
 func (g *Game) browseItems(input func() string) {
-	fmt.Println("\n🎒 ─── ITEMS FOR SALE ─── 🎒")
+	g.println("\n🎒 ─── ITEMS FOR SALE ─── 🎒")
 	for i, item := range ItemsForSale {
 		healStr := ""
 		if item.Heal > 0 {
 			healStr = fmt.Sprintf(" (heals %d HP)", item.Heal)
 		}
-		fmt.Printf("  %d. %s — %d 🪙%s\n", i+1, item.Name, item.Price, healStr)
-		fmt.Printf("     💬 %s\n", item.Quip)
+		g.printf("  %d. %s — %d 🪙%s\n", i+1, item.Name, item.Price, healStr)
+		g.printf("     💬 %s\n", item.Quip)
 	}
-	fmt.Print("\nEnter number to buy (or 0 to go back): > ")
+	g.print("\nEnter number to buy (or 0 to go back): > ")
 
 	choice, err := strconv.Atoi(strings.TrimSpace(input()))
 	if err != nil || choice < 1 || choice > len(ItemsForSale) {
@@ -100,28 +100,28 @@ func (g *Game) browseItems(input func() string) {
 	}
 	item := ItemsForSale[choice-1]
 	if g.Player.Gold < item.Price {
-		fmt.Printf("😢 Can't afford %s. You need %d 🪙.\n", item.Name, item.Price)
+		g.printf("😢 Can't afford %s. You need %d 🪙.\n", item.Name, item.Price)
 		return
 	}
 	g.Player.Gold -= item.Price
 	g.Player.Inventory = append(g.Player.Inventory, item)
-	fmt.Printf("🎉 Bought %s! It's now rattling around in your bag.\n", item.Name)
+	g.printf("🎉 Bought %s! It's now rattling around in your bag.\n", item.Name)
 }
 
 func (g *Game) sellItems(input func() string) {
 	if len(g.Player.Inventory) == 0 {
-		fmt.Println("🎒 Your bag is emptier than a goblin's promise.")
+		g.println("🎒 Your bag is emptier than a goblin's promise.")
 		return
 	}
-	fmt.Println("\n🎒 ─── YOUR INVENTORY ─── 🎒")
+	g.println("\n🎒 ─── YOUR INVENTORY ─── 🎒")
 	for i, item := range g.Player.Inventory {
 		sellPrice := item.Price / 2
 		if sellPrice < 1 {
 			sellPrice = 1
 		}
-		fmt.Printf("  %d. %s (sell for %d 🪙)\n", i+1, item.Name, sellPrice)
+		g.printf("  %d. %s (sell for %d 🪙)\n", i+1, item.Name, sellPrice)
 	}
-	fmt.Print("\nEnter number to sell (or 0 to go back): > ")
+	g.print("\nEnter number to sell (or 0 to go back): > ")
 
 	choice, err := strconv.Atoi(strings.TrimSpace(input()))
 	if err != nil || choice < 1 || choice > len(g.Player.Inventory) {
@@ -134,5 +134,5 @@ func (g *Game) sellItems(input func() string) {
 	}
 	g.Player.Gold += sellPrice
 	g.Player.Inventory = append(g.Player.Inventory[:choice-1], g.Player.Inventory[choice:]...)
-	fmt.Printf("💸 Sold %s for %d 🪙. The merchant grunts approvingly.\n", item.Name, sellPrice)
+	g.printf("💸 Sold %s for %d 🪙. The merchant grunts approvingly.\n", item.Name, sellPrice)
 }
