@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -72,17 +73,20 @@ func handleGameSession(session ssh.Session) {
 		playerName = "Mudrick the Uncertain"
 	}
 
-	// Show title screen
-	fmt.Fprint(session, game.TitleScreen())
+	// Show title screen - use io.WriteString which flushes properly
+	io.WriteString(session, game.TitleScreen())
 
 	// Ask for name
-	fmt.Fprint(session, "What shall we call you, brave fool? > ")
+	io.WriteString(session, "What shall we call you, brave fool? > ")
 
 	// Create a reader from the session
+	// The session implements io.Reader/io.Writer from the Channel interface
 	reader := bufio.NewReader(session)
 	name, err := reader.ReadString('\n')
-	if err != nil && err.Error() != "EOF" {
-		log.Printf("Error reading name: %v", err)
+	if err != nil {
+		if err != io.EOF {
+			log.Printf("Error reading name: %v", err)
+		}
 		return
 	}
 
